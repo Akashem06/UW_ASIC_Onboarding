@@ -9,12 +9,13 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-Explain how your project works
+The project uses SPI to control a PWM peripheral
 
 ## How to test
 
-Explain how to use your project
+cd test/
+make
 
 ## External hardware
 
-List external hardware used in your project (e.g. PMOD, LED display, etc), if any
+A SPI peripheral and FPGA
