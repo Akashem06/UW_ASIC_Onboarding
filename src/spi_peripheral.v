@@ -17,7 +17,6 @@ module spi_peripheral #(
     input  wire spi_sclk,
     input  wire spi_cs,
     input  wire spi_mosi,
-    output wire spi_miso,
 
     // Registers
     output reg [7:0] en_reg_out_7_0,
@@ -38,9 +37,6 @@ reg [7:0] shift_reg_in;
 reg [3:0] bit_count; // Wrap around at 16
 reg [6:0] reg_address;
 reg read_write_bit;
-
-// Omit output
-assign spi_miso = 1'b1;
 
 reg spi_sclk_sync_0, spi_sclk_sync_1;
 reg spi_cs_sync_0, spi_cs_sync_1;
@@ -140,11 +136,6 @@ always @(posedge clk or negedge rst_n) begin
 
         endcase
     end
-end
-
-initial begin
-    $display("[INIT] Starting simulation at time %0t", $time);
-    state <= SPI_STATE_IDLE;
 end
 
 endmodule
