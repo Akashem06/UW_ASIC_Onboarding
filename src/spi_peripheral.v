@@ -54,6 +54,17 @@ wire _unused = &{cs_rising_edge, sclk_falling_edge};
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
+        shift_reg_in <= 8'b0;
+        bit_count <= 4'b0;
+        reg_address <= 7'b0;
+        read_write_bit <= 1'b0;
+
+        en_reg_out_7_0 <= 8'b0;
+        en_reg_out_15_8 <= 8'b0;
+        en_reg_pwm_7_0 <= 8'b0;
+        en_reg_pwm_15_8 <= 8'b0;
+        pwm_duty_cycle <= 8'b0;
+
         // Reset peripheral
         spi_sclk_sync_0 <= 1'b0;
         spi_sclk_sync_1 <= 1'b0;
@@ -64,33 +75,28 @@ always @(posedge clk or negedge rst_n) begin
 
         state <= SPI_STATE_IDLE;
 
+        transaction_complete <= 1'b0;
     end else begin
-        // Sample clock, chip select, data, etc. Use FSM?
         spi_sclk_sync_0 <= spi_sclk;
         spi_sclk_sync_1 <= spi_sclk_sync_0;
         spi_cs_sync_0 <= spi_cs;
         spi_cs_sync_1 <= spi_cs_sync_0;
         spi_mosi_sync_0 <= spi_mosi;
         spi_mosi_sync_1 <= spi_mosi_sync_0;
-    end
-end
 
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        state <= SPI_STATE_IDLE;
-    end else begin
         case (state)
             SPI_STATE_IDLE: begin
+                bit_count <= 4'd0;
+                transaction_complete <= 1'b0;
+
                 if (cs_falling_edge) begin
-                    $display("Changing into receive state");
                     state <= SPI_STATE_RECEIVE;
                 end
             end
 
             SPI_STATE_RECEIVE: begin
-                // On 16th bit we write and update register value. Then enter idle
+
                 if (transaction_complete) begin
-                    // On 16th bit we write and update register value
                     if (read_write_bit == 1'b1) begin
                         if (reg_address <= MAX_ADDRESS) begin
                             case (reg_address)
@@ -104,38 +110,9 @@ always @(posedge clk or negedge rst_n) begin
                         end
                     end
 
-                    transaction_complete <= 1'b0;
                     state <= SPI_STATE_IDLE;
                 end
-            end
 
-            default:;
-        endcase
-    end
-end
-
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        shift_reg_in <= 8'b0;
-        bit_count <= 4'b0;
-        reg_address <= 7'b0;
-        read_write_bit <= 1'b0;
-
-        en_reg_out_7_0 <= 8'b0;
-        en_reg_out_15_8 <= 8'b0;
-        en_reg_pwm_7_0 <= 8'b0;
-        en_reg_pwm_15_8 <= 8'b0;
-        pwm_duty_cycle <= 8'b0;
-
-        transaction_complete <= 1'b0;
-    end else begin
-        case (state)
-            SPI_STATE_IDLE: begin
-                bit_count <= 4'd0;
-                transaction_complete <= 1'b0;
-            end
-
-            SPI_STATE_RECEIVE: begin
                 if (sclk_rising_edge) begin
                     // Shift data into register
                     shift_reg_in <= {shift_reg_in[6:0], spi_mosi_sync_1};
