@@ -3,11 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
- `default_nettype none
+`default_nettype none
 
 module spi_peripheral #(
-    parameter SPI_CPOL = 0,
-    parameter SPI_CPHA = 0,
     parameter MAX_ADDRESS = 7'b0000100
 ) (
     input  wire       clk,      // clock
@@ -50,6 +48,8 @@ wire sclk_falling_edge = spi_sclk_sync_1 & ~spi_sclk_sync_0;
 wire cs_rising_edge   = ~spi_cs_sync_1 &  spi_cs_sync_0;
 wire cs_falling_edge  =  spi_cs_sync_1 & ~spi_cs_sync_0;
 
+wire _unused = &{cs_rising_edge, sclk_falling_edge};
+
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         // Reset peripheral
@@ -86,7 +86,22 @@ always @(posedge clk or negedge rst_n) begin
             end
 
             SPI_STATE_RECEIVE: begin
+                // On 16th bit we write and update register value. Then enter idle
                 if (bit_count == 4'd15) begin
+                    // On 16th bit we write and update register value
+                    if (read_write_bit == 1'b1) begin
+                        if (reg_address <= MAX_ADDRESS) begin
+                            case (reg_address)
+                                7'd0: en_reg_out_7_0    <= {shift_reg_in[6:0], spi_mosi_sync_1};
+                                7'd1: en_reg_out_15_8   <= {shift_reg_in[6:0], spi_mosi_sync_1};
+                                7'd2: en_reg_pwm_7_0    <= {shift_reg_in[6:0], spi_mosi_sync_1};
+                                7'd3: en_reg_pwm_15_8   <= {shift_reg_in[6:0], spi_mosi_sync_1};
+                                7'd4: pwm_duty_cycle    <= {shift_reg_in[6:0], spi_mosi_sync_1};
+                                default:;
+                            endcase
+                        end
+                    end
+
                     state <= SPI_STATE_IDLE;
                 end
             end
@@ -100,6 +115,12 @@ always @(posedge clk or negedge rst_n) begin
         bit_count <= 4'b0;
         reg_address <= 7'b0;
         read_write_bit <= 1'b0;
+
+        en_reg_out_7_0 <= 8'b0;
+        en_reg_out_15_8 <= 8'b0;
+        en_reg_pwm_7_0 <= 8'b0;
+        en_reg_pwm_15_8 <= 8'b0;
+        pwm_duty_cycle <= 8'b0;
     end else begin
         case (state)
             SPI_STATE_IDLE: begin
@@ -109,28 +130,15 @@ always @(posedge clk or negedge rst_n) begin
             SPI_STATE_RECEIVE: begin
                 if (sclk_rising_edge) begin
                     // Shift data into register
-                    shift_reg_in = {shift_reg_in[6:0], spi_mosi_sync_1};
+                    shift_reg_in <= {shift_reg_in[6:0], spi_mosi_sync_1};
 
-                    bit_count = bit_count + 1;
-                    $display("[SPI] WRITE -> Addr: %0d, Data: 0x%02x, BitCount: %0d", reg_address, {shift_reg_in[6:0], spi_mosi_sync_1}, bit_count);
+                    if (bit_count < 4'd15) 
+                        bit_count <= bit_count + 1;
 
-                    if (bit_count == 1)
+                    if (bit_count == 4'd0)
                         read_write_bit <= spi_mosi_sync_1;
-                    else if (bit_count >= 1 && bit_count <= 8)
+                    else if (bit_count >= 4'd1 && bit_count <= 4'd7)
                         reg_address <= {reg_address[5:0], spi_mosi_sync_1};
-
-                    // On 16th bit we write and update register value
-                    if (bit_count == 4'd15 && read_write_bit == 1'b1) begin
-                        $display("Done!");
-                        case (reg_address)
-                            7'd0: en_reg_out_7_0    <= {shift_reg_in[6:0], spi_mosi_sync_1};
-                            7'd1: en_reg_out_15_8   <= {shift_reg_in[6:0], spi_mosi_sync_1};
-                            7'd2: en_reg_pwm_7_0    <= {shift_reg_in[6:0], spi_mosi_sync_1};
-                            7'd3: en_reg_pwm_15_8   <= {shift_reg_in[6:0], spi_mosi_sync_1};
-                            7'd4: pwm_duty_cycle    <= {shift_reg_in[6:0], spi_mosi_sync_1};
-                            default:;
-                        endcase
-                    end
                 end
             end
 
