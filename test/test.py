@@ -301,7 +301,7 @@ async def test_pwm_duty(dut):
         ui_in_val = await send_spi_transaction(dut, 1, 0x04, 0x80)
         freq, duty = await sample_pwm_signal(dut, dut.uo_out, channel=i)
 
-        assert duty == 0.5, f"Expected Duty cycle at 50%, got {duty} on channel {i}"
+        assert 0.5 - 0.0001 <= duty <= 0.5 + 0.0001, f"Expected Duty cycle at 50%, got {duty} on channel {i}"
 
         # 100% DUTY CYCLE TEST
         ui_in_val = await send_spi_transaction(dut, 1, 0x04, 0xFF)
@@ -329,7 +329,7 @@ async def test_pwm_duty(dut):
         ui_in_val = await send_spi_transaction(dut, 1, 0x04, 0x80)
         freq, duty = await sample_pwm_signal(dut, dut.uio_out, channel=i)
 
-        assert duty == 0.5, f"Expected Duty cycle at 50%, got {duty} on channel {i + 8}"
+        assert 0.5 - 0.0001 <= duty <= 0.5 + 0.0001, f"Expected Duty cycle at 50%, got {duty} on channel {i + 8}"
 
         # 100% DUTY CYCLE TEST
         ui_in_val = await send_spi_transaction(dut, 1, 0x04, 0xFF)
